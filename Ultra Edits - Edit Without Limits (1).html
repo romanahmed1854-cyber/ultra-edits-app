@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Ultra Edits - Edit Without Limits</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:#0B0B0B;color:#fff;min-height:100vh;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:900;font-size:20px}
+.logo b{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#FF7A18,#FFB347);display:grid;place-items:center;font-size:22px}
+.ic{width:38px;height:38px;border-radius:50%;background:#1d1d1d;display:grid;place-items:center;cursor:pointer}
+.tabs{display:flex;gap:8px;padding:0 16px;overflow:auto}
+.tabs button{white-space:nowrap;border:0;padding:9px 14px;border-radius:20px;background:#1d1d1d;color:#fff;cursor:pointer}
+.tabs button.on{background:linear-gradient(135deg,#FF7A18,#FFB347)}
+.wrap{max-width:1100px;margin:auto;padding:14px 16px 90px}
+.card{background:#161616;border:1px solid #2a2a2a;border-radius:22px;padding:16px;margin-top:14px}
+.preview{height:260px;border-radius:22px;background:linear-gradient(180deg,#FF8A3D,#FF5E3A 45%,#2B6CB0 45%,#0B3D91);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.sun{width:80px;height:80px;border-radius:50%;background:#FFE27A;box-shadow:0 0 60px #FFE27A}
+.play{position:absolute;width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.25);display:grid;place-items:center;font-size:32px;cursor:pointer;border:1px solid #fff}
+.pill{position:absolute;left:14px;bottom:14px;background:rgba(0,0,0,.55);padding:10px 12px;border-radius:14px}
+.tools{display:flex;justify-content:center;gap:10px;margin-top:12px}
+.tools span{background:#222;padding:10px 14px;border-radius:20px;cursor:pointer}
+.row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.row b{width:32px;text-align:center;background:#222;padding:8px 0;border-radius:8px}
+.bar{flex:1;height:34px;background:#222;border-radius:10px;position:relative;overflow:hidden;cursor:pointer}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#FF7A18,#FFB347);display:flex;align-items:center;padding-left:8px;font-style:normal;font-size:12px}
+.wave{flex:1;height:34px;background:#222;border-radius:10px;display:flex;align-items:center;gap:3px;padding:0 8px}
+.wave i{display:block;width:4px;background:#FF8A3D;border-radius:3px}
+.ruler{display:flex;justify-content:space-between;color:#FF9A4D;font-size:12px;padding:0 0 0 42px}
+.btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.btns button{flex:1;min-width:90px;background:#222;color:#fff;border:0;padding:14px;border-radius:14px;cursor:pointer;font-weight:700}
+.export{margin-top:16px;width:100%;border:0;padding:16px;border-radius:30px;background:linear-gradient(90deg,#FF7A18,#FFB347);color:#fff;font-size:18px;font-weight:900;cursor:pointer}
+input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #333;background:#111;color:#fff;margin:8px 0}
+.chip{padding:8px 12px;background:#222;border-radius:20px;cursor:pointer;display:inline-block;margin:4px}
+.chip.on{background:#FF7A18}
+.progress{height:14px;background:#222;border-radius:20px;overflow:hidden;margin-top:10px}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,#FF7A18,#FFB347);width:0%}
+.hide{display:none}
+.flex{display:flex;gap:10px;flex-wrap:wrap}
+.flex>div{flex:1;min-width:140px}
+.pip{position:absolute;width:110px;height:70px;background:#111;border:2px solid #FF7A18;border-radius:10px;display:grid;place-items:center;right:12px;top:12px;cursor:move;touch-action:none}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#FF7A18;color:#fff;padding:10px 18px;border-radius:20px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+#toast.show{opacity:1}
+@media(min-width:900px){.preview{height:340px}}
+</style>
+</head>
+<body>
+<div class="top"><div class="logo"><b>▶</b>Ultra Edits</div><div style="display:flex;gap:8px"><div class="ic" onclick="toast('Undo')">↩</div><div class="ic" onclick="toast('Redo')">↪</div><div class="ic">⋯</div></div></div>
+<div class="tabs">
+<button class="on" onclick="show('home',this)">Home</button>
+<button onclick="show('editor',this)">Editor</button>
+<button onclick="show('pro',this)">Pro Tools</button>
+<button onclick="show('export',this)">Export</button>
+<button onclick="show('premium',this)">Premium</button>
+<button onclick="show('settings',this)">Settings</button>
+</div>
+<div class="wrap">
+<div id="home">
+<div class="card"><h2>Welcome to Ultra Edits</h2><p style="color:#bbb;margin-top:6px">Edit Without Limits - Orange + Black Premium</p><button class="export" onclick="show('editor',document.querySelectorAll('.tabs button')[1])">+ New Project</button></div>
+<div class="card"><h3>Recent Projects</h3><p style="margin-top:10px">▶ Project_CliffSunset.mp4 — 00:12 / 00:30</p><p>▶ Travel Vlog — 00:42</p><p>▶ Food Reel — 00:15</p></div>
+<div class="card"><h3>Templates</h3><p><span class="chip on">Cinematic</span><span class="chip">VHS</span><span class="chip">Neon</span><span class="chip">Vintage</span></p></div>
+<div class="card"><h3>AI Tools</h3><p>Auto Subtitle - Background Remover - Reel Maker - Thumbnail</p></div>
+</div>
+<div id="editor" class="hide">
+<div class="card">
+<div class="preview" id="preview"><div class="sun"></div><div class="play" id="playBtn" onclick="togglePlay()">▶</div><div class="pill"><b>Project_CliffSunset.mp4</b><br><small id="timeTxt">00:12 / 00:30</small></div><div class="pip" id="pip">PiP</div></div>
+<div class="tools"><span onclick="toast('Volume')">🔊</span><span onclick="toast('Mute')">🔇</span><span onclick="toast('Crop')">⛶</span><span onclick="toast('Fullscreen')">⛶</span><span onclick="toast('Cut')">✂️</span></div>
+<h3 style="margin-top:14px">Timeline</h3>
+<div class="ruler"><span>0s</span><span>5s</span><span>10s</span><span>15s</span><span>20s</span><span>25s</span><span>30s</span></div>
+<div class="row"><b>V1</b><div class="bar" onclick="selectClip(this)"><i id="v1bar" style="width:60%">00:12</i></div></div>
+<div class="row"><b>A1</b><div class="wave" id="wave"></div></div>
+<div class="row"><b>T</b><div class="bar"><i style="width:25%;background:#333">SUNSET — 3s</i></div></div>
+<div class="row"><b>S</b><div class="bar"><i style="width:18%">🔥</i></div></div>
+<label>Timeline Zoom</label><input type="range" min="40" max="100" value="60" oninput="document.getElementById('v1bar').style.width=this.value+'%'">
+<label>Speed</label><div id="speedChips"><span class="chip" onclick="setSpeed(this)">0.5x</span><span class="chip on" onclick="setSpeed(this)">1x</span><span class="chip" onclick="setSpeed(this)">2x</span></div>
+<label>Add Text (Bangla Supported)</label><input id="txtInput" placeholder="এখানে টেক্সট লিখো — SUNSET" oninput="document.getElementById('caption').innerText=this.value">
+<div id="caption" style="text-align:center;font-size:26px;font-weight:900;text-shadow:0 0 12px #FF7A18;margin:8px">SUNSET</div>
+<div class="btns"><button onclick="splitClip()">✂️ Split</button><button onclick="toast('Trim Done')">Trim</button><button onclick="toast('Duplicate Done')">Duplicate</button><button onclick="toast('Crop / Rotate')">Crop</button></div>
+</div>
+<div class="card"><h3>Effects</h3><div id="fx"><span class="chip" onclick="fx(this,'Blur')">Blur</span><span class="chip" onclick="fx(this,'VHS')">VHS</span><span class="chip" onclick="fx(this,'Glitch')">Glitch</span><span class="chip" onclick="fx(this,'Vintage')">Vintage</span><span class="chip" onclick="fx(this,'Grain')">Grain</span><span class="chip" onclick="fx(this,'Cinematic')">Cinematic</span></div><label>Intensity</label><input type="range" min="0" max="100" value="50" oninput="document.getElementById('preview').style.filter='brightness('+(100+this.value/3)+'%)'"></div>
+</div>
+<div id="pro" class="hide">
+<div class="card"><h3>Magic Remover</h3><label>Brush Size</label><input type="range"><button class="export" onclick="toast('Object Removed')">Erase Object</button></div>
+<div class="card"><h3>Chroma Key / Green Screen</h3><div><span class="chip on">Green</span><span class="chip">Blue</span><span class="chip">Red</span></div><label>Tolerance</label><input type="range"><label>Feather</label><input type="range"></div>
+<div class="card"><h3>Keyframe Animation</h3><label>Position</label><input type="range"><label>Scale</label><input type="range"><label>Opacity</label><input type="range"><button class="export" onclick="toast('Keyframe Added')">+ Add Keyframe</button></div>
+<div class="card"><h3>Asset Store</h3><div class="flex"><div class="card">Trending Music <button class="export" onclick="this.innerText='Downloaded'">Download</button></div><div class="card">Neon Pack <button class="export" onclick="this.innerText='Downloaded'">Download</button></div></div></div>
+<div class="card"><h3>Stabilization</h3><label>Strength</label><input type="range"><button class="export" onclick="toast('Stabilization ON')">Apply Stabilization</button></div>
+<div class="card"><h3>Reverse + Freeze</h3><div class="btns"><button onclick="toast('Video Reversed')">Reverse Video</button><button onclick="toast('Freeze Frame Added')">Freeze Frame</button><button onclick="toast('PiP ON')">PiP ON</button></div></div>
+<div class="card"><h3>Blending / Overlay</h3><select><option>Normal</option><option>Multiply</option><option>Screen</option><option>Overlay</option></select><div><span class="chip">Fire</span><span class="chip">Smoke</span><span class="chip">Light Leak</span><span class="chip">Rain</span><span class="chip">Bokeh</span></div></div>
+</div>
+<div id="export" class="hide">
+<div class="card"><h3>Export Video</h3><label>Resolution</label><div><span class="chip">480p</span><span class="chip">720p</span><span class="chip on">1080p</span><span class="chip">2K</span><span class="chip">4K</span></div><label>FPS</label><div><span class="chip on">30fps</span><span class="chip">60fps</span></div><label>Preset</label><div><span class="chip">TikTok</span><span class="chip">Instagram Reel</span><span class="chip">Facebook Reel</span><span class="chip">YouTube Shorts</span></div><label>Watermark</label><select><option>ON</option><option>OFF (Premium)</option></select><button class="export" onclick="doExport()">Export Video</button><div class="progress"><i id="prog"></i></div><p id="progTxt" style="margin-top:8px">Ready</p></div>
+</div>
+<div id="premium" class="hide">
+<div class="card"><h3>Ultra Premium</h3><p>Remove Ads - VIP Templates - 4K Export - AI Tools</p><div class="flex"><div class="card"><h3>Monthly</h3><p>299 / month</p><button class="export">Buy Monthly</button></div><div class="card"><h3>Yearly</h3><p>1999 / year</p><button class="export">Buy Yearly</button></div><div class="card"><h3>Lifetime</h3><p>4999 / once</p><button class="export">Buy Lifetime</button></div></div></div>
+</div>
+<div id="settings" class="hide">
+<div class="card"><h3>Settings</h3><p>Dark Mode: ON</p><p>Cloud Backup: ON</p><p>Login: Google / Facebook / Guest</p><p>Quality: High</p><p>Storage: Smart Cache</p></div>
+</div>
+</div>
+<div id="toast"></div>
+<script>
+function show(id,btn){['home','editor','pro','export','premium','settings'].forEach(x=>document.getElementById(x).classList.add('hide'));document.getElementById(id).classList.remove('hide');document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on'));if(btn)btn.classList.add('on');window.scrollTo(0,0)}
+let tt;function toast(m){const t=document.getElementById('toast');t.innerText=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1400)}
+let playing=false,sec=12,timer;
+function togglePlay(){playing=!playing;document.getElementById('playBtn').innerText=playing?'⏸':'▶';clearInterval(timer);if(playing){timer=setInterval(()=>{sec++;if(sec>30)sec=0;document.getElementById('timeTxt').innerText='00:'+String(sec).padStart(2,'0')+' / 00:30'},500)}}
+function splitClip(){let b=document.getElementById('v1bar');b.style.width='30%';b.innerText='00:06 + 00:06';toast('Split Done')}
+function setSpeed(el){document.querySelectorAll('#speedChips .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');toast('Speed: '+el.innerText)}
+function fx(el,name){document.querySelectorAll('#fx .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');let p=document.getElementById('preview');if(name=='Blur')p.style.filter='blur(2px)';else if(name=='Vintage')p.style.filter='sepia(.6)';else if(name=='Cinematic')p.style.filter='contrast(1.3) saturate(1.4)';else p.style.filter='none';toast(name+' Applied')}
+function selectClip(el){el.style.outline='2px solid #FF7A18';toast('Clip Selected')}
+function doExport(){let w=0;let t=setInterval(()=>{w+=10;document.getElementById('prog').style.width=w+'%';document.getElementById('progTxt').innerText='Exporting... '+w+'%';if(w>=100){clearInterval(t);document.getElementById('progTxt').innerText='Export Done 1080p Ready!';toast('Export Done')}},300)}
+let wave=document.getElementById('wave');for(let i=0;i<30;i++){let b=document.createElement('i');b.style.height=(8+Math.random()*20)+'px';wave.appendChild(b)}
+let pip=document.getElementById('pip'),dx=0,dy=0,drag=false;
+pip.addEventListener('pointerdown',e=>{drag=true;dx=e.clientX-pip.offsetLeft;dy=e.clientY-pip.offsetTop;pip.setPointerCapture(e.pointerId)});
+pip.addEventListener('pointermove',e=>{if(drag){pip.style.left=(e.clientX-dx)+'px';pip.style.top=(e.clientY-dy)+'px';pip.style.right='auto'}});
+pip.addEventListener('pointerup',()=>drag=false);
+</script>
+</body>
+</html>
