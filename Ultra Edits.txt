@@ -1,0 +1,2320 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Play, Pause, Home, Film, Wand2, Download, Crown, Settings,
+  Search, Bell, User, Plus, Folder, Star, Sparkles, Scissors,
+  Crop, RotateCw, FlipHorizontal, Copy, Undo2, Redo2, Volume2,
+  VolumeX, Maximize2, Magnet, Upload, Mic, Music, Type, Sticker,
+  Sliders, Layers, Eraser, Eye, Cpu, Check, ChevronRight, X,
+  Zap, ShieldCheck, Globe, LogOut, Smartphone, Monitor, RefreshCw,
+  Trash2, Video, Palette, Activity, Move, Lock, Unlock
+} from 'lucide-react';
+
+const INITIAL_CLIPS = [
+  { id: 'c1', name: 'Project_CliffSunset.mp4', start: 0, duration: 12, color: 'from-[#FF7A18] to-[#FFB347]', format: 'mp4' },
+  { id: 'c2', name: 'GoldenHour_Drone.mp4', start: 12, duration: 18, color: 'from-[#FF5E14] to-[#FF9E2C]', format: 'mp4' },
+];
+
+const INITIAL_PROJECTS = [
+  { id: 'p1', name: 'Project_CliffSunset.mp4', current: '00:12', duration: '00:30', totalSec: 30, date: 'Today, 9:30 PM', folder: 'My Projects', favorite: true, grad: 'from-[#FF7A18] via-[#FF4E50] to-[#1A1A1A]' },
+  { id: 'p2', name: 'Travel Vlog', current: '00:00', duration: '00:42', totalSec: 42, date: 'Yesterday', folder: 'My Projects', favorite: false, grad: 'from-[#FFB347] via-[#FF7A18] to-[#2B1055]' },
+  { id: 'p3', name: 'Food Reel', current: '00:00', duration: '00:15', totalSec: 15, date: 'Nov 24, 2026', folder: 'Drafts', favorite: true, grad: 'from-[#FF512F] via-[#F09819] to-[#161616]' },
+];
+
+const EFFECTS_LIST = [
+  { id: 'none', name: 'Original', filter: '' },
+  { id: 'blur', name: 'Blur', filter: 'blur' },
+  { id: 'cinematic', name: 'Cinematic LUT', filter: 'contrast(1.22) saturate(1.25) sepia(0.18)' },
+  { id: 'vhs', name: 'VHS', filter: 'contrast(1.15) saturate(1.4) hue-rotate(-10deg)' },
+  { id: 'glitch', name: 'RGB Glitch', filter: 'saturate(1.8) contrast(1.3)' },
+  { id: 'motion', name: 'Motion Blur', filter: 'blur' },
+  { id: 'slowmo', name: 'Slow Motion', filter: 'brightness(1.05) saturate(1.15)' },
+  { id: 'sharpen', name: 'Sharpen', filter: 'contrast(1.35) brightness(1.04)' },
+  { id: 'vintage', name: 'Vintage', filter: 'sepia(0.55) contrast(1.1) brightness(0.95)' },
+  { id: 'grain', name: 'Film Grain', filter: 'contrast(1.12) grayscale(0.2)' },
+];
+
+const TRANSITIONS_LIST = ['Fade', 'Zoom', 'Slide', 'Flash', 'Spin', 'Blur', '3D', 'Camera Shake'];
+
+const STICKER_TYPES = [
+  { id: 'anim', label: 'Animated Sticker', icon: '⚡' },
+  { id: 'emoji', label: 'Emoji', icon: '🔥' },
+  { id: 'gif', label: 'GIF', icon: '🎞️' },
+  { id: 'overlay', label: 'Overlay', icon: '✨' },
+  { id: 'fire', label: 'Fire', icon: '🔥' },
+  { id: 'smoke', label: 'Smoke', icon: '💨' },
+  { id: 'particle', label: 'Particle', icon: '🌟' },
+  { id: 'leak', label: 'Light Leak', icon: '🌅' },
+];
+
+const MUSIC_TRACKS = [
+  { id: 'm1', title: 'Sunset Horizon (Lo-Fi)', duration: '00:30', bpm: 92 },
+  { id: 'm2', title: 'Dhaka Midnight Beat', duration: '00:45', bpm: 118 },
+  { id: 'm3', title: 'Cinematic Rise Epic', duration: '00:30', bpm: 128 },
+  { id: 'm4', title: 'Neon Pulse Synth', duration: '00:25', bpm: 110 },
+];
+
+const AI_TOOLS = [
+  { id: 'ai-sub', name: 'Auto Subtitle', bn: 'অটো সাবটাইটেল', desc: 'Generate accurate EN & BN captions' },
+  { id: 'ai-bg', name: 'Background Remover', bn: 'ব্যাকগ্রাউন্ড রিমুভার', desc: 'One-tap AI subject cutout' },
+  { id: 'ai-reel', name: 'Reel Maker', bn: 'রিল মেকার', desc: 'Auto-sync cuts to beat' },
+  { id: 'ai-thumb', name: 'Thumbnail Generator', bn: 'থাম্বনেইল মেকার', desc: 'Extract & enhance 4K cover' },
+  { id: 'ai-voice', name: 'Voice Enhancer', bn: 'ভয়েস এনহ্যান্সার', desc: 'Studio clarity & de-reverb' },
+  { id: 'ai-trans', name: 'Subtitle Translation', bn: 'সাবটাইটেল অনুবাদ', desc: 'Translate EN ↔ বাংলা instantly' },
+  { id: 'ai-obj', name: 'Object Detection', bn: 'অবজেক্ট ডিটেকশন', desc: 'Track faces & moving objects' },
+];
+
+const formatTime = (sec) => {
+  const s = Math.max(0, Math.floor(sec));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+};
+
+export default function App() {
+  // Navigation & Onboarding
+  const [stage, setStage] = useState('splash'); // 'splash' | 'onboarding' | 'app'
+  const [onboardStep, setOnboardStep] = useState(0);
+  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'editor' | 'pro' | 'export' | 'premium' | 'settings'
+  const [toast, setToast] = useState(null);
+
+  // Theme & Settings
+  const [darkMode, setDarkMode] = useState(true);
+  const [language, setLanguage] = useState('en'); // 'en' | 'bn'
+  const [cloudBackup, setCloudBackup] = useState(true);
+  const [autoSave, setAutoSave] = useState(true);
+  const [quality, setQuality] = useState('High');
+  const [smartCacheSize, setSmartCacheSize] = useState('412 MB');
+  const [authUser, setAuthUser] = useState('Guest Mode');
+  const [isPremium, setIsPremium] = useState(false);
+
+  // Home Dashboard State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFolder, setActiveFolder] = useState('My Projects');
+  const [projects, setProjects] = useState(INITIAL_PROJECTS);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [activeAiModal, setActiveAiModal] = useState(null);
+
+  // Editor Core State
+  const [clips, setClips] = useState(INITIAL_CLIPS);
+  const [selectedClipId, setSelectedClipId] = useState('c1');
+  const [history, setHistory] = useState([]);
+  const [redoStack, setRedoStack] = useState([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(12); // Starts at 00:12 / 00:30
+  const [timelineZoom, setTimelineZoom] = useState(18); // px per second
+  const [snapEnabled, setSnapEnabled] = useState(true);
+  const [activeEditorToolTab, setActiveEditorToolTab] = useState('effects'); // 'effects' | 'transitions' | 'text' | 'audio' | 'stickers' | 'speed' | 'import'
+
+  // Preview & Transform State
+  const [aspectCrop, setAspectCrop] = useState('16:9');
+  const [rotation, setRotation] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [speedRamp, setSpeedRamp] = useState(1);
+
+  // Effects & Transitions
+  const [activeEffect, setActiveEffect] = useState('none');
+  const [effectIntensity, setEffectIntensity] = useState(75);
+  const [activeTransition, setActiveTransition] = useState('Fade');
+
+  // Text & Captions
+  const [captionText, setCaptionText] = useState('Edit Without Limits');
+  const [textStyle, setTextStyle] = useState({
+    animated: true,
+    banglaFont: false,
+    gradient: true,
+    neon: true,
+    shadow: true,
+    customFontName: 'Inter Bold',
+  });
+  const [textTrackItems, setTextTrackItems] = useState([
+    { id: 't1', label: 'Edit Without Limits', start: 2, duration: 14 },
+  ]);
+
+  // Audio State
+  const [audioTrack, setAudioTrack] = useState({
+    name: 'Sunset Horizon (Lo-Fi)',
+    start: 0,
+    duration: 30,
+    volume: 85,
+    muted: false,
+    noiseReduction: true,
+    fadeIn: true,
+    fadeOut: true,
+    recording: false,
+  });
+
+  // Stickers State
+  const [stickerItems, setStickerItems] = useState([
+    { id: 's1', label: 'Light Leak', icon: '🌅', start: 4, duration: 8 },
+  ]);
+
+  // PiP State (Draggable)
+  const [pipEnabled, setPipEnabled] = useState(true);
+  const [pipPos, setPipPos] = useState({ x: 72, y: 12 }); // percentage
+  const [isDraggingPip, setIsDraggingPip] = useState(false);
+  const previewRef = useRef(null);
+
+  // Pro Tools State
+  const [brushSize, setBrushSize] = useState(28);
+  const [objectRemoved, setObjectRemoved] = useState(false);
+  const [chromaColor, setChromaColor] = useState('None'); // 'None' | 'Green' | 'Blue' | 'Red'
+  const [chromaTolerance, setChromaTolerance] = useState(40);
+  const [chromaFeather, setChromaFeather] = useState(20);
+  const [keyframeVals, setKeyframeVals] = useState({ position: 50, scale: 100, opacity: 100, rotation: 0 });
+  const [keyframes, setKeyframes] = useState([3, 12, 24]);
+  const [downloadedAssets, setDownloadedAssets] = useState({});
+  const [stabilizeStrength, setStabilizeStrength] = useState(65);
+  const [stabilized, setStabilized] = useState(false);
+  const [reversed, setReversed] = useState(false);
+  const [frozenFrame, setFrozenFrame] = useState(false);
+  const [blendMode, setBlendMode] = useState('Normal');
+  const [blendOpacity, setBlendOpacity] = useState(80);
+  const [activeOverlayChip, setActiveOverlayChip] = useState('Light Leak');
+  const [perfFlags, setPerfFlags] = useState({ gpu: true, smartCache: true, lowRam: false });
+
+  // Export State
+  const [exportRes, setExportRes] = useState('1080p');
+  const [exportFps, setExportFps] = useState('60fps');
+  const [highBitrate, setHighBitrate] = useState(true);
+  const [bgExport, setBgExport] = useState(false);
+  const [watermarkOn, setWatermarkOn] = useState(true);
+  const [exportPreset, setExportPreset] = useState('YouTube Shorts');
+  const [exportRatio, setExportRatio] = useState('9:16');
+  const [exportProgress, setExportProgress] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportDone, setExportDone] = useState(false);
+
+  // Drag reorder state for clips
+  const [dragClipIdx, setDragClipIdx] = useState(null);
+
+  const totalDuration = Math.max(1, clips.reduce((acc, c) => acc + c.duration, 0));
+
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // Splash auto-advance
+  useEffect(() => {
+    if (stage !== 'splash') return;
+    const timer = setTimeout(() => setStage('onboarding'), 2200);
+    return () => clearTimeout(timer);
+  }, [stage]);
+
+  // Exact Second-by-Second Smooth Playback Timer
+  useEffect(() => {
+    if (!isPlaying || frozenFrame) return;
+    let last = performance.now();
+    let rafId;
+    const tick = (now) => {
+      const dt = (now - last) / 1000;
+      last = now;
+      setCurrentTime((prev) => {
+        const next = prev + dt * speed * speedRamp;
+        if (next >= totalDuration) {
+          setIsPlaying(false);
+          return 0;
+        }
+        return next;
+      });
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [isPlaying, speed, speedRamp, totalDuration, frozenFrame]);
+
+  // Export animation 0 -> 100%
+  useEffect(() => {
+    if (!isExporting) return;
+    const interval = setInterval(() => {
+      setExportProgress((p) => {
+        if (p >= 100) {
+          clearInterval(interval);
+          setIsExporting(false);
+          setExportDone(true);
+          showToast(`Export Done - ${exportRes} Ready`);
+          return 100;
+        }
+        return p + 4;
+      });
+    }, 80);
+    return () => clearInterval(interval);
+  }, [isExporting, exportRes, showToast]);
+
+  // PiP Dragging Handlers
+  const handlePipPointerMove = useCallback((e) => {
+    if (!isDraggingPip || !previewRef.current) return;
+    const rect = previewRef.current.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const xPct = Math.min(76, Math.max(2, ((clientX - rect.left) / rect.width) * 100 - 10));
+    const yPct = Math.min(70, Math.max(4, ((clientY - rect.top) / rect.height) * 100 - 10));
+    setPipPos({ x: xPct, y: yPct });
+  }, [isDraggingPip]);
+
+  useEffect(() => {
+    if (!isDraggingPip) return;
+    const stop = () => setIsDraggingPip(false);
+    window.addEventListener('mousemove', handlePipPointerMove);
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('touchmove', handlePipPointerMove);
+    window.addEventListener('touchend', stop);
+    return () => {
+      window.removeEventListener('mousemove', handlePipPointerMove);
+      window.removeEventListener('mouseup', stop);
+      window.removeEventListener('touchmove', handlePipPointerMove);
+      window.removeEventListener('touchend', stop);
+    };
+  }, [isDraggingPip, handlePipPointerMove]);
+
+  // Undo / Redo helper
+  const pushHistory = (nextClips) => {
+    setHistory((h) => [...h, clips]);
+    setRedoStack([]);
+    setClips(nextClips);
+  };
+
+  const handleUndo = () => {
+    if (history.length === 0) {
+      showToast('Nothing to undo');
+      return;
+    }
+    const prev = history[history.length - 1];
+    setRedoStack((r) => [...r, clips]);
+    setClips(prev);
+    setHistory((h) => h.slice(0, -1));
+    showToast('Undo applied');
+  };
+
+  const handleRedo = () => {
+    if (redoStack.length === 0) {
+      showToast('Nothing to redo');
+      return;
+    }
+    const next = redoStack[redoStack.length - 1];
+    setHistory((h) => [...h, clips]);
+    setClips(next);
+    setRedoStack((r) => r.slice(0, -1));
+    showToast('Redo applied');
+  };
+
+  // Recompute clip start times sequentially
+  const recomputeStarts = (list) => {
+    let cursor = 0;
+    return list.map((c) => {
+      const updated = { ...c, start: cursor };
+      cursor += c.duration;
+      return updated;
+    });
+  };
+
+  // Split selected clip (splits at playhead if inside clip, or exact half e.g. 00:06 + 00:06!)
+  const handleSplit = () => {
+    const idx = clips.findIndex((c) => c.id === selectedClipId);
+    const targetIdx = idx >= 0 ? idx : 0;
+    const target = clips[targetIdx];
+    if (!target || target.duration < 2) {
+      showToast('Clip too short to split');
+      return;
+    }
+    const localTime = Math.round(currentTime - target.start);
+    const splitPoint = (localTime > 0 && localTime < target.duration)
+      ? localTime
+      : Math.floor(target.duration / 2);
+
+    const partA = {
+      ...target,
+      id: `${target.id}_a_${Date.now()}`,
+      name: `${target.name.split('.')[0]}_1.${target.format}`,
+      duration: splitPoint,
+    };
+    const partB = {
+      ...target,
+      id: `${target.id}_b_${Date.now()}`,
+      name: `${target.name.split('.')[0]}_2.${target.format}`,
+      duration: target.duration - splitPoint,
+    };
+    const next = [...clips];
+    next.splice(targetIdx, 1, partA, partB);
+    pushHistory(recomputeStarts(next));
+    setSelectedClipId(partA.id);
+    showToast(`Split into ${formatTime(partA.duration)} + ${formatTime(partB.duration)}`);
+  };
+
+  const handleTrim = () => {
+    const target = clips.find((c) => c.id === selectedClipId) || clips[0];
+    if (!target || target.duration <= 2) {
+      showToast('Minimum clip length reached');
+      return;
+    }
+    const next = clips.map((c) => c.id === target.id ? { ...c, duration: c.duration - 2 } : c);
+    pushHistory(recomputeStarts(next));
+    showToast(`Trimmed ${target.name} to ${formatTime(target.duration - 2)}`);
+  };
+
+  const handleDuplicate = () => {
+    const idx = clips.findIndex((c) => c.id === selectedClipId);
+    const target = clips[idx >= 0 ? idx : 0];
+    if (!target) return;
+    const copy = { ...target, id: `dup_${Date.now()}`, name: `${target.name} (Copy)` };
+    const next = [...clips];
+    next.splice((idx >= 0 ? idx : 0) + 1, 0, copy);
+    pushHistory(recomputeStarts(next));
+    showToast(`Duplicated (${formatTime(copy.duration)})`);
+  };
+
+  const handleImportVideos = (filesList) => {
+    const validExts = ['mp4', 'mov', 'mkv', 'avi'];
+    const arr = Array.from(filesList || []);
+    if (arr.length === 0) return;
+    const added = arr.map((f, i) => {
+      const ext = f.name.split('.').pop()?.toLowerCase() || 'mp4';
+      const fmt = validExts.includes(ext) ? ext : 'mp4';
+      return {
+        id: `imp_${Date.now()}_${i}`,
+        name: f.name,
+        start: 0,
+        duration: 8 + i * 2,
+        color: 'from-[#FFB347] to-[#FF7A18]',
+        format: fmt,
+      };
+    });
+    pushHistory(recomputeStarts([...clips, ...added]));
+    showToast(`Imported ${added.length} video(s)`);
+  };
+
+  const handleSimulatedImport = (fmt) => {
+    const newClip = {
+      id: `sim_${Date.now()}`,
+      name: `Imported_Clip.${fmt}`,
+      start: 0,
+      duration: 10,
+      color: 'from-[#FF8C32] to-[#FFB347]',
+      format: fmt,
+    };
+    pushHistory(recomputeStarts([...clips, newClip]));
+    showToast(`Imported .${fmt.toUpperCase()} clip (10s)`);
+  };
+
+  const handleReorderClip = (dropIdx) => {
+    if (dragClipIdx === null || dragClipIdx === dropIdx) return;
+    const next = [...clips];
+    const [moved] = next.splice(dragClipIdx, 1);
+    next.splice(dropIdx, 0, moved);
+    pushHistory(recomputeStarts(next));
+    setDragClipIdx(null);
+    showToast('Clips reordered');
+  };
+
+  const handleAddSticker = (st) => {
+    const item = {
+      id: `stk_${Date.now()}`,
+      label: st.label,
+      icon: st.icon,
+      start: Math.floor(currentTime),
+      duration: 6,
+    };
+    setStickerItems((prev) => [...prev, item]);
+    showToast(`${st.label} added at ${formatTime(currentTime)}`);
+  };
+
+  const computePreviewFilter = () => {
+    const eff = EFFECTS_LIST.find((e) => e.id === activeEffect);
+    const scale = effectIntensity / 100;
+    if (!eff || eff.id === 'none') return 'none';
+    if (eff.id === 'blur' || eff.id === 'motion') {
+      return `blur(${(scale * 6).toFixed(1)}px)`;
+    }
+    return eff.filter;
+  };
+
+  const surfaceBg = darkMode ? 'bg-[#0B0B0B] text-white' : 'bg-[#F5F5F7] text-[#111111]';
+  const cardBg = darkMode ? 'bg-[#161616] border-white/10' : 'bg-white border-black/10 shadow-sm';
+  const panelBg = darkMode ? 'bg-[#1A1A1A] border-white/10' : 'bg-[#EAEAEF] border-black/10';
+  const mutedText = darkMode ? 'text-zinc-400' : 'text-zinc-600';
+
+  const labels = language === 'bn'
+    ? {
+        home: 'হোম',
+        editor: 'এডিটর',
+        pro: 'প্রো টুলস',
+        export: 'এক্সপোর্ট',
+        premium: 'প্রিমিয়াম',
+        settings: 'সেটিংস',
+        newProj: '+ নতুন প্রজেক্ট',
+      }
+    : {
+        home: 'Home',
+        editor: 'Editor',
+        pro: 'Pro Tools',
+        export: 'Export',
+        premium: 'Premium',
+        settings: 'Settings',
+        newProj: '+ New Project',
+      };
+
+  // ==================== SCREEN 1: SPLASH ====================
+  if (stage === 'splash') {
+    return (
+      <div className="min-h-screen bg-[#0B0B0B] text-white flex flex-col items-center justify-center p-6 select-none">
+        <div className="relative flex flex-col items-center animate-fadeIn">
+          {/* App Icon Concept: Orange gradient rounded square with white play button */}
+          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#FF7A18] to-[#FFB347] flex items-center justify-center shadow-[0_0_50px_rgba(255,122,24,0.45)] mb-6">
+            <Play className="w-11 h-11 text-white fill-white ml-1" />
+          </div>
+          <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-[#FF7A18] to-[#FFB347] bg-clip-text text-transparent">
+            Ultra Edits
+          </h1>
+          <p className="text-zinc-400 text-sm tracking-widest uppercase mt-2">
+            Edit Without Limits
+          </p>
+          {/* Loading Bar */}
+          <div className="w-56 h-1.5 bg-[#1A1A1A] rounded-full overflow-hidden mt-8 border border-white/10">
+            <div className="h-full bg-gradient-to-r from-[#FF7A18] to-[#FFB347] animate-[pulse_1.2s_ease-in-out_infinite] w-full origin-left" />
+          </div>
+          <button
+            onClick={() => setStage('onboarding')}
+            className="mt-6 text-xs text-zinc-500 hover:text-[#FFB347] transition"
+          >
+            Tap to continue →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== SCREEN 1: ONBOARDING ====================
+  if (stage === 'onboarding') {
+    const slides = [
+      {
+        title: 'Edit Without Limits',
+        subtitle: 'Precision multi-track timeline with exact second-by-second control & Bangla font support.',
+        grad: 'from-[#FF7A18] to-[#FFB347]',
+        icon: <Film className="w-12 h-12 text-white" />,
+      },
+      {
+        title: 'Pro Effects',
+        subtitle: 'Cinematic LUTs, Chroma Key, Keyframe Animation, Magic Object Remover & AI Tools.',
+        grad: 'from-[#FF5E14] to-[#FF9E2C]',
+        icon: <Wand2 className="w-12 h-12 text-white" />,
+      },
+      {
+        title: 'Export in 4K',
+        subtitle: '60fps high-bitrate rendering with instant presets for TikTok, Reels & YouTube Shorts.',
+        grad: 'from-[#FFB347] to-[#FF7A18]',
+        icon: <Download className="w-12 h-12 text-white" />,
+      },
+    ];
+    const curr = slides[onboardStep];
+    return (
+      <div className="min-h-screen bg-[#0B0B0B] text-white flex flex-col justify-between p-6 max-w-md mx-auto">
+        <div className="flex justify-between items-center pt-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#FF7A18] to-[#FFB347] flex items-center justify-center">
+              <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+            </div>
+            <span className="font-bold text-sm">Ultra Edits</span>
+          </div>
+          <button
+            onClick={() => setStage('app')}
+            className="text-sm text-zinc-400 hover:text-white px-3 py-1.5 rounded-full bg-[#161616] border border-white/10"
+          >
+            Skip
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center text-center my-auto py-8">
+          <div className={`w-36 h-36 rounded-[2rem] bg-gradient-to-br ${curr.grad} flex items-center justify-center shadow-[0_0_60px_rgba(255,122,24,0.35)] mb-8 transition-all duration-300`}>
+            {curr.icon}
+          </div>
+          <h2 className="text-3xl font-extrabold mb-3">{curr.title}</h2>
+          <p className="text-zinc-400 text-sm leading-relaxed max-w-xs">{curr.subtitle}</p>
+        </div>
+
+        <div className="space-y-6 pb-4">
+          <div className="flex justify-center gap-2">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setOnboardStep(idx)}
+                className={`h-2 rounded-full transition-all ${onboardStep === idx ? 'w-8 bg-[#FF7A18]' : 'w-2 bg-zinc-700'}`}
+                aria-label={`Slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              if (onboardStep < slides.length - 1) {
+                setOnboardStep(onboardStep + 1);
+              } else {
+                setStage('app');
+              }
+            }}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF7A18] to-[#FFB347] text-black font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-[#FF7A18]/25 active:scale-[0.99] transition"
+          >
+            {onboardStep < slides.length - 1 ? 'Next' : 'Start Editing'}
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== SHARED VIDEO PREVIEW COMPONENT ====================
+  const renderVideoPreview = (compact = false) => {
+    const ratioClass =
+      aspectCrop === '9:16'
+        ? 'aspect-[9/16] max-h-[300px] mx-auto'
+        : aspectCrop === '1:1'
+        ? 'aspect-square max-h-[280px] mx-auto'
+        : 'aspect-video w-full';
+
+    const chromaBg =
+      chromaColor === 'Green'
+        ? 'from-emerald-900 via-teal-800 to-black'
+        : chromaColor === 'Blue'
+        ? 'from-blue-900 via-indigo-900 to-black'
+        : chromaColor === 'Red'
+        ? 'from-rose-900 via-red-950 to-black'
+        : 'from-[#FF7A18] via-[#C84B14] to-[#0B0B0B]';
+
+    return (
+      <div
+        ref={previewRef}
+        className={`relative overflow-hidden rounded-2xl border border-white/15 bg-black select-none ${
+          isFullscreen ? 'fixed inset-4 z-50 aspect-video' : ratioClass
+        }`}
+      >
+        {/* Video Canvas with CSS Sunset Gradient + Sun + Effects + Keyframe Transforms */}
+        <div
+          className={`w-full h-full bg-gradient-to-b ${chromaBg} relative flex items-center justify-center transition-all duration-200`}
+          style={{
+            filter: computePreviewFilter(),
+            transform: `rotate(${rotation + keyframeVals.rotation}deg) scaleX(${flipped ? -1 : 1}) scale(${keyframeVals.scale / 100})`,
+            opacity: keyframeVals.opacity / 100,
+          }}
+        >
+          {/* Glowing Sun */}
+          <div
+            className="w-24 h-24 rounded-full bg-gradient-to-b from-[#FFE29F] via-[#FFB347] to-[#FF7A18] shadow-[0_0_60px_rgba(255,179,71,0.85)] transition-transform duration-300"
+            style={{
+              transform: `translate(${(keyframeVals.position - 50) * 1.4}px, ${Math.sin(currentTime * 0.5) * 4}px)`,
+            }}
+          />
+          {/* Cliff Silhouette */}
+          <div className="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black via-black/80 to-transparent" />
+          <svg viewBox="0 0 400 100" className="absolute bottom-0 inset-x-0 w-full h-2/5 text-[#0B0B0B]" preserveAspectRatio="none">
+            <path d="M0,100 L0,45 L75,30 L140,65 L230,50 L310,20 L400,55 L400,100 Z" fill="currentColor" />
+          </svg>
+
+          {/* Blending / Overlay Effect */}
+          {activeOverlayChip && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                opacity: blendOpacity / 100,
+                mixBlendMode: blendMode.toLowerCase(),
+                background:
+                  activeOverlayChip === 'Fire'
+                    ? 'radial-gradient(circle at bottom, rgba(255,90,0,0.45), transparent 70%)'
+                    : activeOverlayChip === 'Light Leak'
+                    ? 'linear-gradient(120deg, rgba(255,179,71,0.35), transparent 55%)'
+                    : activeOverlayChip === 'Bokeh'
+                    ? 'radial-gradient(circle at 20% 30%, rgba(255,179,71,0.35) 0 12px, transparent 14px), radial-gradient(circle at 80% 40%, rgba(255,122,24,0.35) 0 18px, transparent 20px)'
+                    : 'radial-gradient(circle, rgba(255,255,255,0.12), transparent)',
+              }}
+            />
+          )}
+
+          {/* Active Stickers on Preview */}
+          {stickerItems
+            .filter((s) => currentTime >= s.start && currentTime <= s.start + s.duration)
+            .map((s, idx) => (
+              <div
+                key={s.id}
+                className="absolute text-2xl animate-bounce pointer-events-none drop-shadow-lg"
+                style={{ top: `${18 + idx * 14}%`, left: `${14 + idx * 16}%` }}
+              >
+                {s.icon}
+              </div>
+            ))}
+
+          {/* Live Caption Overlay */}
+          {captionText && (
+            <div
+              className={`absolute bottom-12 inset-x-4 text-center pointer-events-none px-2 ${
+                textStyle.animated ? 'transition-all duration-300' : ''
+              }`}
+            >
+              <span
+                className={`inline-block font-extrabold tracking-wide ${
+                  compact ? 'text-lg' : 'text-xl sm:text-2xl'
+                } ${
+                  textStyle.gradient
+                    ? 'bg-gradient-to-r from-white via-[#FFB347] to-[#FF7A18] bg-clip-text text-transparent'
+                    : 'text-white'
+                }`}
+                style={{
+                  fontFamily: textStyle.banglaFont ? '"Noto Sans Bengali", sans-serif' : 'inherit',
+                  textShadow: textStyle.neon
+                    ? '0 0 16px rgba(255,122,24,0.9), 0 0 32px rgba(255,179,71,0.7)'
+                    : textStyle.shadow
+                    ? '0 3px 10px rgba(0,0,0,0.9)'
+                    : 'none',
+                }}
+              >
+                {captionText}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Draggable PiP Box */}
+        {pipEnabled && (
+          <div
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              setIsDraggingPip(true);
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              setIsDraggingPip(true);
+            }}
+            style={{ left: `${pipPos.x}%`, top: `${pipPos.y}%` }}
+            className="absolute w-20 h-14 sm:w-24 sm:h-16 rounded-xl border-2 border-[#FF7A18] bg-gradient-to-br from-[#2B1055] via-[#FF7A18]/60 to-[#0B0B0B] shadow-lg cursor-grab active:cursor-grabbing flex flex-col items-center justify-center z-20"
+            title="Drag PiP Box"
+          >
+            <Move className="w-3.5 h-3.5 text-[#FFB347]" />
+            <span className="text-[9px] font-bold text-white/90 mt-0.5">PiP Cam</span>
+          </div>
+        )}
+
+        {/* Top-left Status Badges */}
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
+          <span className="px-2 py-0.5 rounded-full bg-black/70 backdrop-blur text-[10px] font-semibold text-[#FFB347] border border-white/10">
+            {aspectCrop} • {speed}x
+          </span>
+          {objectRemoved && (
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-semibold">
+              Object Removed
+            </span>
+          )}
+          {stabilized && (
+            <span className="px-2 py-0.5 rounded-full bg-[#FF7A18]/25 text-[#FFB347] border border-[#FF7A18]/40 text-[10px] font-semibold">
+              Stabilized
+            </span>
+          )}
+          {frozenFrame && (
+            <span className="px-2 py-0.5 rounded-full bg-sky-500/25 text-sky-300 border border-sky-500/40 text-[10px] font-semibold">
+              Freeze Frame
+            </span>
+          )}
+        </div>
+
+        {/* Top-right Fullscreen Close */}
+        {isFullscreen && (
+          <button
+            onClick={() => setIsFullscreen(false)}
+            className="absolute top-3 right-3 p-2 rounded-full bg-black/70 text-white z-30 hover:bg-[#FF7A18] hover:text-black transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Bottom Overlay Controls: Play/Pause + Exact Time */}
+        <div className="absolute bottom-2 inset-x-2.5 flex items-center justify-between bg-black/65 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 z-10">
+          <button
+            onClick={() => {
+              setFrozenFrame(false);
+              setIsPlaying((p) => !p);
+            }}
+            className="flex items-center gap-1.5 text-xs font-bold text-white hover:text-[#FFB347] transition"
+          >
+            {isPlaying ? (
+              <Pause className="w-4 h-4 text-[#FF7A18] fill-[#FF7A18]" />
+            ) : (
+              <Play className="w-4 h-4 text-[#FF7A18] fill-[#FF7A18]" />
+            )}
+            <span>{isPlaying ? 'Pause' : 'Play'}</span>
+          </button>
+          <div className="font-mono text-xs font-bold tracking-wider text-[#FFB347]">
+            {formatTime(currentTime)} / {formatTime(totalDuration)}
+          </div>
+          <button
+            onClick={() => setIsFullscreen((f) => !f)}
+            className="text-zinc-300 hover:text-white"
+            aria-label="Toggle Fullscreen"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== SCREEN 2: HOME DASHBOARD ====================
+  const renderHome = () => {
+    const filteredProjects = projects.filter((p) => {
+      const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchFolder =
+        activeFolder === 'Favorites'
+          ? p.favorite
+          : activeFolder === 'Drafts'
+          ? p.folder === 'Drafts'
+          : true;
+      return matchSearch && matchFolder;
+    });
+
+    const templates = ['Cinematic', 'VHS', 'Neon', 'Vintage', 'Trending'];
+
+    return (
+      <div className="space-y-6 pb-6">
+        {/* Top Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FF7A18] to-[#FFB347] flex items-center justify-center shadow-md shadow-[#FF7A18]/25">
+              <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-extrabold leading-none">Ultra Edits</h1>
+              <span className="text-[11px] text-[#FFB347]">Edit Without Limits</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${cardBg}`}>
+              <Search className="w-4 h-4 text-zinc-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search projects..."
+                className="bg-transparent text-xs outline-none w-28 sm:w-44"
+              />
+            </div>
+            <button
+              onClick={() => setShowNotifications((n) => !n)}
+              className={`relative p-2 rounded-xl border ${cardBg} hover:border-[#FF7A18] transition`}
+              aria-label="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF7A18]" />
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border ${cardBg} hover:border-[#FF7A18] transition text-xs font-semibold`}
+            >
+              <User className="w-4 h-4 text-[#FF7A18]" />
+              <span className="hidden sm:inline">{authUser}</span>
+            </button>
+          </div>
+        </div>
+
+        {showNotifications && (
+          <div className={`p-3.5 rounded-2xl border ${cardBg} flex items-center justify-between text-xs`}>
+            <span>✨ New Bangla Fonts & Neon Pack available in Pro Tools!</span>
+            <button onClick={() => setShowNotifications(false)} className="text-[#FF7A18] font-bold">Dismiss</button>
+          </div>
+        )}
+
+        {/* Big + New Project CTA */}
+        <button
+          onClick={() => {
+            setClips(INITIAL_CLIPS);
+            setCurrentTime(0);
+            setActiveTab('editor');
+            showToast('New project workspace ready');
+          }}
+          className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#FF7A18] to-[#FFB347] text-black font-extrabold text-base flex items-center justify-center gap-2.5 shadow-lg shadow-[#FF7A18]/25 hover:brightness-105 active:scale-[0.99] transition"
+        >
+          <Plus className="w-5 h-5 stroke-[3]" />
+          <span>{labels.newProj}</span>
+        </button>
+
+        {/* Folders */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {['My Projects', 'Drafts', 'Favorites'].map((folder) => (
+            <button
+              key={folder}
+              onClick={() => setActiveFolder(folder)}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap border transition ${
+                activeFolder === folder
+                  ? 'bg-[#FF7A18] text-black border-[#FF7A18]'
+                  : `${cardBg} hover:border-[#FF7A18]/50`
+              }`}
+            >
+              {folder === 'Favorites' ? <Star className="w-3.5 h-3.5" /> : <Folder className="w-3.5 h-3.5" />}
+              <span>{folder}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Recent Projects */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold tracking-wide uppercase text-[#FFB347]">Recent Projects</h2>
+            <span className={`text-xs ${mutedText}`}>{filteredProjects.length} items</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {filteredProjects.map((proj) => (
+              <div
+                key={proj.id}
+                onClick={() => {
+                  setCurrentTime(proj.id === 'p1' ? 12 : 0);
+                  setActiveTab('editor');
+                  showToast(`Loaded ${proj.name}`);
+                }}
+                className={`group cursor-pointer rounded-2xl border p-3 ${cardBg} hover:border-[#FF7A18] transition`}
+              >
+                <div className={`h-24 rounded-xl bg-gradient-to-br ${proj.grad} relative overflow-hidden mb-3 flex items-center justify-center`}>
+                  <div className="w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center group-hover:scale-110 transition">
+                    <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                  </div>
+                  <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-black/75 text-[10px] font-mono text-[#FFB347]">
+                    {proj.id === 'p1' ? `${proj.current} / ${proj.duration}` : proj.duration}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm truncate">{proj.name}</p>
+                    <p className={`text-[11px] ${mutedText}`}>{proj.date}</p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProjects((prev) =>
+                        prev.map((item) => item.id === proj.id ? { ...item, favorite: !item.favorite } : item)
+                      );
+                    }}
+                    className="p-1"
+                    aria-label="Toggle Favorite"
+                  >
+                    <Star className={`w-4 h-4 ${proj.favorite ? 'text-[#FFB347] fill-[#FFB347]' : 'text-zinc-500'}`} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Templates */}
+        <div>
+          <h2 className="text-sm font-bold tracking-wide uppercase text-[#FFB347] mb-3">Templates</h2>
+          <div className="flex gap-2.5 overflow-x-auto pb-1">
+            {templates.map((tpl) => (
+              <button
+                key={tpl}
+                onClick={() => {
+                  const effMap = { Cinematic: 'cinematic', VHS: 'vhs', Neon: 'glitch', Vintage: 'vintage', Trending: 'sharpen' };
+                  setActiveEffect(effMap[tpl] || 'cinematic');
+                  setActiveTab('editor');
+                  showToast(`Applied ${tpl} template`);
+                }}
+                className={`px-4 py-2.5 rounded-2xl border ${cardBg} hover:border-[#FF7A18] text-xs font-bold whitespace-nowrap flex items-center gap-2 transition`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#FF7A18]" />
+                <span>{tpl}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* AI Tools Shortcuts */}
+        <div>
+          <h2 className="text-sm font-bold tracking-wide uppercase text-[#FFB347] mb-3">AI Tools</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+            {AI_TOOLS.map((tool) => (
+              <button
+                key={tool.id}
+                onClick={() => setActiveAiModal(tool)}
+                className={`p-3 rounded-2xl border ${cardBg} hover:border-[#FF7A18] text-left transition flex flex-col justify-between gap-2`}
+              >
+                <div className="w-8 h-8 rounded-xl bg-[#FF7A18]/15 text-[#FF7A18] flex items-center justify-center">
+                  <Wand2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold leading-tight">{tool.name}</p>
+                  <p className="text-[10px] text-[#FFB347] mt-0.5">{tool.bn}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Login Section */}
+        <div className={`p-4 rounded-2xl border ${cardBg} flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
+          <div>
+            <p className="text-sm font-bold">Account & Cloud Sync</p>
+            <p className={`text-xs ${mutedText}`}>Signed in as: <span className="text-[#FFB347] font-semibold">{authUser}</span></p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {['Google', 'Facebook', 'Guest Mode'].map((provider) => (
+              <button
+                key={provider}
+                onClick={() => {
+                  setAuthUser(provider);
+                  showToast(`Switched to ${provider}`);
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition ${
+                  authUser === provider
+                    ? 'bg-[#FF7A18] text-black border-[#FF7A18]'
+                    : `${panelBg} hover:border-[#FF7A18]`
+                }`}
+              >
+                {provider}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* AI Tool Interactive Modal */}
+        {activeAiModal && (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className={`w-full max-w-sm rounded-3xl border p-5 ${cardBg} space-y-4`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-extrabold text-base">{activeAiModal.name}</h3>
+                  <p className="text-xs text-[#FFB347]">{activeAiModal.bn}</p>
+                </div>
+                <button onClick={() => setActiveAiModal(null)} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className={`text-xs ${mutedText}`}>{activeAiModal.desc}</p>
+              <button
+                onClick={() => {
+                  if (activeAiModal.id === 'ai-sub' || activeAiModal.id === 'ai-trans') {
+                    setCaptionText(activeAiModal.id === 'ai-trans' ? 'সীমাহীন এডিটিং — Ultra Edits' : 'Auto Captions Enabled');
+                    setTextStyle((s) => ({ ...s, banglaFont: activeAiModal.id === 'ai-trans' }));
+                  }
+                  if (activeAiModal.id === 'ai-bg') setChromaColor('Green');
+                  if (activeAiModal.id === 'ai-obj') setObjectRemoved(true);
+                  const name = activeAiModal.name;
+                  setActiveAiModal(null);
+                  setActiveTab('editor');
+                  showToast(`${name} applied to project`);
+                }}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF7A18] to-[#FFB347] text-black font-extrabold text-sm"
+              >
+                Run {activeAiModal.name} & Open Editor
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ==================== SCREEN 3: EDITOR ====================
+  const renderEditor = () => {
+    const rulerMarks = [];
+    for (let s = 0; s <= Math.max(30, totalDuration); s += 5) {
+      rulerMarks.push(s);
+    }
+
+    const leftMediaPanel = (
+      <div className={`rounded-2xl border p-3.5 space-y-3 ${cardBg}`}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#FFB347]">Media & Clips</h3>
+          <label className="cursor-pointer px-2.5 py-1 rounded-lg bg-[#FF7A18] text-black text-[11px] font-bold flex items-center gap-1">
+            <Upload className="w-3 h-3" />
+            <span>Import</span>
+            <input
+              type="file"
+              multiple
+              accept=".mp4,.mov,.mkv,.avi,video/*"
+              className="hidden"
+              onChange={(e) => handleImportVideos(e.target.files)}
+            />
+          </label>
+        </div>
+        <p className={`text-[11px] ${mutedText}`}>Supports mp4, mov, mkv, avi • Drag to reorder</p>
+        <div className="flex flex-wrap gap-1.5">
+          {['mp4', 'mov', 'mkv', 'avi'].map((fmt) => (
+            <button
+              key={fmt}
+              onClick={() => handleSimulatedImport(fmt)}
+              className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${panelBg} hover:border-[#FF7A18]`}
+            >
+              + .{fmt}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+          {clips.map((clip, idx) => (
+            <div
+              key={clip.id}
+              draggable
+              onDragStart={() => setDragClipIdx(idx)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => handleReorderClip(idx)}
+              onClick={() => {
+                setSelectedClipId(clip.id);
+                setCurrentTime(clip.start);
+              }}
+              className={`p-2.5 rounded-xl border cursor-grab active:cursor-grabbing transition ${
+                selectedClipId === clip.id ? 'border-[#FF7A18] bg-[#FF7A18]/10' : `${panelBg} hover:border-white/25`
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold truncate">{clip.name}</span>
+                <span className="text-[10px] font-mono text-[#FFB347]">{formatTime(clip.duration)}</span>
+              </div>
+              <div className={`text-[10px] ${mutedText} mt-0.5`}>
+                Start: {clip.start}s • {clip.format.toUpperCase()}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    const rightToolsPanel = (
+      <div className={`rounded-2xl border p-3.5 space-y-3 ${cardBg}`}>
+        {/* Tool Category Pills */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {[
+            { id: 'effects', label: 'Effects' },
+            { id: 'transitions', label: 'Transitions' },
+            { id: 'text', label: 'Text' },
+            { id: 'audio', label: 'Audio' },
+            { id: 'stickers', label: 'Stickers' },
+            { id: 'speed', label: 'Speed' },
+            { id: 'import', label: 'Import' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveEditorToolTab(t.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+                activeEditorToolTab === t.id
+                  ? 'bg-[#FF7A18] text-black'
+                  : `${panelBg} hover:text-[#FFB347]`
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* EFFECTS */}
+        {activeEditorToolTab === 'effects' && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-1.5">
+              {EFFECTS_LIST.map((ef) => (
+                <button
+                  key={ef.id}
+                  onClick={() => {
+                    setActiveEffect(ef.id);
+                    showToast(`Effect: ${ef.name}`);
+                  }}
+                  className={`px-2.5 py-2 rounded-xl text-xs font-semibold border text-left transition ${
+                    activeEffect === ef.id
+                      ? 'border-[#FF7A18] bg-[#FF7A18]/20 text-[#FFB347]'
+                      : `${panelBg} hover:border-white/25`
+                  }`}
+                >
+                  {ef.name}
+                </button>
+              ))}
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>Intensity</span>
+                <span className="text-[#FFB347] font-mono">{effectIntensity}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={effectIntensity}
+                onChange={(e) => setEffectIntensity(Number(e.target.value))}
+                className="w-full accent-[#FF7A18]"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* TRANSITIONS */}
+        {activeEditorToolTab === 'transitions' && (
+          <div className="space-y-2.5">
+            <p className={`text-xs ${mutedText}`}>Select transition between V1 clips:</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {TRANSITIONS_LIST.map((tr) => (
+                <button
+                  key={tr}
+                  onClick={() => {
+                    setActiveTransition(tr);
+                    showToast(`Transition set: ${tr}`);
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                    activeTransition === tr
+                      ? 'border-[#FF7A18] bg-[#FF7A18]/20 text-[#FFB347]'
+                      : `${panelBg}`
+                  }`}
+                >
+                  {tr}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TEXT */}
+        {activeEditorToolTab === 'text' && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-bold block mb-1">Live Caption Input</label>
+              <input
+                type="text"
+                value={captionText}
+                onChange={(e) => setCaptionText(e.target.value)}
+                placeholder="Type caption or বাংলা টেক্সট..."
+                className={`w-full px-3 py-2 rounded-xl border text-xs outline-none focus:border-[#FF7A18] ${panelBg}`}
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { key: 'animated', label: 'Animated Text' },
+                { key: 'banglaFont', label: 'Bangla Font (বাংলা)' },
+                { key: 'gradient', label: 'Gradient' },
+                { key: 'neon', label: 'Neon' },
+                { key: 'shadow', label: 'Shadow' },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setTextStyle((s) => ({ ...s, [opt.key]: !s[opt.key] }))}
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border ${
+                    textStyle[opt.key] ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : panelBg
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <label className={`cursor-pointer px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 ${panelBg} hover:border-[#FF7A18]`}>
+                <Upload className="w-3.5 h-3.5 text-[#FF7A18]" />
+                <span>Custom Font Upload</span>
+                <input
+                  type="file"
+                  accept=".ttf,.otf,.woff,.woff2"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setTextStyle((s) => ({ ...s, customFontName: f.name }));
+                      showToast(`Loaded font: ${f.name}`);
+                    }
+                  }}
+                />
+              </label>
+              <button
+                onClick={() => {
+                  setCaptionText('সীমাহীন এডিটিং ✨');
+                  setTextStyle((s) => ({ ...s, banglaFont: true }));
+                  showToast('Bangla caption applied');
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-[#FF7A18]/20 text-[#FFB347] text-[11px] font-bold"
+              >
+                Sample বাংলা
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* AUDIO */}
+        {activeEditorToolTab === 'audio' && (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              {MUSIC_TRACKS.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setAudioTrack((a) => ({ ...a, name: m.title }));
+                    showToast(`Music: ${m.title}`);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl border flex items-center justify-between text-xs ${
+                    audioTrack.name === m.title ? 'border-[#FF7A18] bg-[#FF7A18]/15' : panelBg
+                  }`}
+                >
+                  <span className="font-semibold flex items-center gap-1.5">
+                    <Music className="w-3.5 h-3.5 text-[#FF7A18]" />
+                    {m.title}
+                  </span>
+                  <span className="text-[10px] font-mono text-[#FFB347]">{m.bpm} BPM</span>
+                </button>
+              ))}
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>Volume</span>
+                <span className="font-mono text-[#FFB347]">{audioTrack.muted ? 0 : audioTrack.volume}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={audioTrack.muted ? 0 : audioTrack.volume}
+                onChange={(e) => setAudioTrack((a) => ({ ...a, volume: Number(e.target.value), muted: false }))}
+                className="w-full accent-[#FF7A18]"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => showToast('Audio extracted to A1 track')}
+                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border ${panelBg} hover:border-[#FF7A18]`}
+              >
+                Extract Audio
+              </button>
+              <button
+                onClick={() => {
+                  setAudioTrack((a) => ({ ...a, recording: !a.recording }));
+                  showToast(audioTrack.recording ? 'Voice recording saved' : 'Voice recording started...');
+                }}
+                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1 ${
+                  audioTrack.recording ? 'bg-red-500 text-white border-red-500' : panelBg
+                }`}
+              >
+                <Mic className="w-3 h-3" />
+                {audioTrack.recording ? 'Stop Rec' : 'Voice Recording'}
+              </button>
+              <button
+                onClick={() => setAudioTrack((a) => ({ ...a, noiseReduction: !a.noiseReduction }))}
+                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border ${
+                  audioTrack.noiseReduction ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : panelBg
+                }`}
+              >
+                Noise Reduction
+              </button>
+              <button
+                onClick={() => setAudioTrack((a) => ({ ...a, fadeIn: !a.fadeIn, fadeOut: !a.fadeOut }))}
+                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border ${
+                  audioTrack.fadeIn ? 'bg-[#FF7A18]/20 text-[#FFB347] border-[#FF7A18]' : panelBg
+                }`}
+              >
+                Fade In/Out
+              </button>
+              <button
+                onClick={() => showToast('Beat Sync aligned clips to BPM')}
+                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border ${panelBg} hover:border-[#FF7A18]`}
+              >
+                Beat Sync
+              </button>
+              <button
+                onClick={() => {
+                  setAudioTrack((a) => ({ ...a, duration: Math.max(5, a.duration - 2) }));
+                  showToast('Audio trimmed -2s');
+                }}
+                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border ${panelBg} hover:border-[#FF7A18]`}
+              >
+                Audio Trimming
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STICKERS */}
+        {activeEditorToolTab === 'stickers' && (
+          <div className="grid grid-cols-2 gap-2">
+            {STICKER_TYPES.map((st) => (
+              <button
+                key={st.id}
+                onClick={() => handleAddSticker(st)}
+                className={`p-2.5 rounded-xl border ${panelBg} hover:border-[#FF7A18] flex items-center gap-2 text-xs font-semibold transition`}
+              >
+                <span className="text-base">{st.icon}</span>
+                <span className="truncate">{st.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* SPEED */}
+        {activeEditorToolTab === 'speed' && (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              {[0.5, 1, 2].map((sp) => (
+                <button
+                  key={sp}
+                  onClick={() => {
+                    setSpeed(sp);
+                    showToast(`Playback speed: ${sp}x`);
+                  }}
+                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold border transition ${
+                    speed === sp ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : panelBg
+                  }`}
+                >
+                  {sp}x {sp === 0.5 ? '(Slow-Mo)' : ''}
+                </button>
+              ))}
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>Speed Ramp</span>
+                <span className="font-mono text-[#FFB347]">{speedRamp.toFixed(1)}x</span>
+              </div>
+              <input
+                type="range"
+                min="0.2"
+                max="3.0"
+                step="0.1"
+                value={speedRamp}
+                onChange={(e) => setSpeedRamp(Number(e.target.value))}
+                className="w-full accent-[#FF7A18]"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* IMPORT (Mobile shortcut) */}
+        {activeEditorToolTab === 'import' && (
+          <div className="space-y-2.5">
+            <p className={`text-xs ${mutedText}`}>Multi-Video Import (mp4, mov, mkv, avi)</p>
+            <label className="w-full py-3 rounded-xl bg-[#FF7A18] text-black font-bold text-xs flex items-center justify-center gap-2 cursor-pointer">
+              <Upload className="w-4 h-4" />
+              <span>Select Video Files</span>
+              <input
+                type="file"
+                multiple
+                accept=".mp4,.mov,.mkv,.avi,video/*"
+                className="hidden"
+                onChange={(e) => handleImportVideos(e.target.files)}
+              />
+            </label>
+          </div>
+        )}
+      </div>
+    );
+
+    return (
+      <div className="space-y-3 pb-4">
+        {/* 3-Panel Layout on Desktop (1024px+), Stacked on Mobile */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          {/* Left Media Panel (Desktop) */}
+          <div className="hidden lg:block lg:col-span-3">{leftMediaPanel}</div>
+
+          {/* Center Preview + Tools Row + Timeline */}
+          <div className="lg:col-span-6 space-y-3">
+            {renderVideoPreview()}
+
+            {/* Quick Tools Row */}
+            <div className={`flex items-center justify-between gap-1.5 px-2.5 py-2 rounded-2xl border overflow-x-auto ${cardBg}`}>
+              {[
+                { icon: audioTrack.muted ? VolumeX : Volume2, label: 'Volume', action: () => setActiveEditorToolTab('audio') },
+                { icon: VolumeX, label: audioTrack.muted ? 'Unmute' : 'Mute', action: () => setAudioTrack((a) => ({ ...a, muted: !a.muted })) },
+                {
+                  icon: Crop,
+                  label: `Crop (${aspectCrop})`,
+                  action: () => {
+                    const order = ['16:9', '9:16', '1:1'];
+                    const next = order[(order.indexOf(aspectCrop) + 1) % order.length];
+                    setAspectCrop(next);
+                    showToast(`Crop: ${next}`);
+                  },
+                },
+                { icon: Maximize2, label: 'Fullscreen', action: () => setIsFullscreen(true) },
+                { icon: Scissors, label: 'Cut', action: handleSplit },
+                {
+                  icon: RotateCw,
+                  label: 'Rotate',
+                  action: () => {
+                    setRotation((r) => (r + 90) % 360);
+                    showToast('Rotated 90°');
+                  },
+                },
+              ].map((btn) => (
+                <button
+                  key={btn.label}
+                  onClick={btn.action}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold hover:bg-[#FF7A18]/20 hover:text-[#FFB347] whitespace-nowrap transition"
+                >
+                  <btn.icon className="w-3.5 h-3.5 text-[#FF7A18]" />
+                  <span>{btn.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Timeline Controls Bar */}
+            <div className={`p-2.5 rounded-2xl border space-y-2.5 ${cardBg}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1">
+                  <button onClick={handleSplit} className="px-2.5 py-1.5 rounded-lg bg-[#FF7A18] text-black text-[11px] font-extrabold flex items-center gap-1">
+                    <Scissors className="w-3 h-3" /> Split
+                  </button>
+                  <button onClick={handleTrim} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold ${panelBg} hover:border-[#FF7A18]`}>
+                    Trim
+                  </button>
+                  <button onClick={handleDuplicate} className={`px-2 py-1.5 rounded-lg border text-[11px] font-bold ${panelBg} hover:border-[#FF7A18]`} title="Duplicate">
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => setFlipped((f) => !f)} className={`px-2 py-1.5 rounded-lg border text-[11px] font-bold ${panelBg} hover:border-[#FF7A18]`} title="Flip">
+                    <FlipHorizontal className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={handleUndo} className={`px-2 py-1.5 rounded-lg border text-[11px] font-bold ${panelBg} hover:border-[#FF7A18]`} title="Undo">
+                    <Undo2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={handleRedo} className={`px-2 py-1.5 rounded-lg border text-[11px] font-bold ${panelBg} hover:border-[#FF7A18]`} title="Redo">
+                    <Redo2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSnapEnabled((s) => !s)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border ${
+                      snapEnabled ? 'border-[#FF7A18] text-[#FFB347] bg-[#FF7A18]/15' : panelBg
+                    }`}
+                  >
+                    <Magnet className="w-3 h-3" /> Snap {snapEnabled ? 'ON' : 'OFF'}
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-zinc-400">Zoom</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="40"
+                      value={timelineZoom}
+                      onChange={(e) => setTimelineZoom(Number(e.target.value))}
+                      className="w-20 accent-[#FF7A18]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Scrollable Multi-Track Timeline */}
+              <div className="overflow-x-auto pb-2 relative">
+                <div
+                  className="relative select-none"
+                  style={{ width: `${Math.max(30, totalDuration) * timelineZoom + 80}px` }}
+                >
+                  {/* Ruler: 0s, 5s, 10s, 15s, 20s, 25s, 30s */}
+                  <div
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const sec = Math.max(0, Math.min(totalDuration, (e.clientX - rect.left - 44) / timelineZoom));
+                      setCurrentTime(snapEnabled ? Math.round(sec) : sec);
+                    }}
+                    className="h-6 flex items-end border-b border-white/10 pl-11 cursor-pointer relative"
+                  >
+                    {rulerMarks.map((sec) => (
+                      <div
+                        key={sec}
+                        className="absolute bottom-0 text-[10px] font-mono text-zinc-400 border-l border-zinc-600 pl-1"
+                        style={{ left: `${44 + sec * timelineZoom}px` }}
+                      >
+                        {sec}s
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Playhead Line */}
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-[#FFB347] z-20 pointer-events-none shadow-[0_0_8px_#FF7A18]"
+                    style={{ left: `${44 + currentTime * timelineZoom}px` }}
+                  >
+                    <div className="w-2.5 h-2.5 -ml-[4px] rounded-full bg-[#FF7A18]" />
+                  </div>
+
+                  {/* Track 1: V1 Video */}
+                  <div className="flex items-center h-11 border-b border-white/5 relative mt-1">
+                    <span className="w-11 shrink-0 text-[10px] font-extrabold text-[#FFB347]">V1</span>
+                    <div className="relative flex-1 h-9 flex items-center">
+                      {clips.map((c, i) => (
+                        <React.Fragment key={c.id}>
+                          <div
+                            onClick={() => setSelectedClipId(c.id)}
+                            style={{ width: `${c.duration * timelineZoom}px` }}
+                            className={`h-8 rounded-lg bg-gradient-to-r ${c.color} px-2 flex items-center justify-between cursor-pointer border-2 transition-all duration-150 shrink-0 ${
+                              selectedClipId === c.id ? 'border-white shadow-md' : 'border-transparent opacity-90'
+                            }`}
+                          >
+                            <span className="text-[10px] font-bold text-black truncate">{c.name}</span>
+                            <span className="text-[9px] font-mono font-bold text-black/80 ml-1">{formatTime(c.duration)}</span>
+                          </div>
+                          {i < clips.length - 1 && (
+                            <div
+                              onClick={() => setActiveEditorToolTab('transitions')}
+                              className="w-4 h-6 -mx-2 z-10 rounded bg-black border border-[#FF7A18] flex items-center justify-center text-[8px] font-bold text-[#FFB347] cursor-pointer shrink-0"
+                              title={`Transition: ${activeTransition}`}
+                            >
+                              ⚡
+                            </div>
+                          )}
+                        </React.Fragment>
+                      ))}
+                      {/* Keyframe Dots */}
+                      {keyframes.map((kf) => (
+                        <div
+                          key={kf}
+                          className="absolute bottom-0.5 w-2 h-2 rotate-45 bg-white border border-[#FF7A18] z-10 pointer-events-none"
+                          style={{ left: `${kf * timelineZoom}px` }}
+                          title={`Keyframe at ${kf}s`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Track 2: A1 Audio Waveform */}
+                  <div className="flex items-center h-10 border-b border-white/5 relative">
+                    <span className="w-11 shrink-0 text-[10px] font-extrabold text-emerald-400">A1</span>
+                    <div
+                      style={{ width: `${audioTrack.duration * timelineZoom}px` }}
+                      className="h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-2 flex items-center gap-0.5 overflow-hidden"
+                    >
+                      {Array.from({ length: 36 }).map((_, idx) => (
+                        <div
+                          key={idx}
+                          className="w-1 bg-emerald-400/80 rounded-full shrink-0"
+                          style={{ height: `${25 + ((idx * 17) % 65)}%` }}
+                        />
+                      ))}
+                      <span className="text-[9px] text-emerald-200 font-semibold ml-2 truncate">{audioTrack.name}</span>
+                    </div>
+                  </div>
+
+                  {/* Track 3: T Text */}
+                  <div className="flex items-center h-9 border-b border-white/5 relative">
+                    <span className="w-11 shrink-0 text-[10px] font-extrabold text-sky-400">T</span>
+                    {textTrackItems.map((t) => (
+                      <div
+                        key={t.id}
+                        style={{ marginLeft: `${t.start * timelineZoom}px`, width: `${t.duration * timelineZoom}px` }}
+                        className="h-6 rounded-md bg-sky-500/25 border border-sky-400/50 px-2 flex items-center text-[10px] text-sky-200 truncate"
+                      >
+                        {captionText || t.label}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Track 4: S Sticker */}
+                  <div className="flex items-center h-9 relative">
+                    <span className="w-11 shrink-0 text-[10px] font-extrabold text-purple-400">S</span>
+                    <div className="relative flex-1 h-7 flex items-center">
+                      {stickerItems.map((s) => (
+                        <div
+                          key={s.id}
+                          style={{ left: `${s.start * timelineZoom}px`, width: `${s.duration * timelineZoom}px` }}
+                          className="absolute h-6 rounded-md bg-purple-500/25 border border-purple-400/50 px-1.5 flex items-center gap-1 text-[10px] text-purple-200 truncate"
+                        >
+                          <span>{s.icon}</span>
+                          <span className="truncate">{s.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Tools Panel */}
+          <div className="lg:col-span-3 space-y-3">
+            {rightToolsPanel}
+            <div className="lg:hidden">{leftMediaPanel}</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== SCREEN 4: PRO TOOLS ====================
+  const renderProTools = () => (
+    <div className="space-y-5 pb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <div className="lg:col-span-5">{renderVideoPreview(true)}</div>
+
+        <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {/* Magic Remover */}
+          <div className={`p-4 rounded-2xl border space-y-2.5 ${cardBg}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-extrabold uppercase text-[#FFB347] flex items-center gap-1.5">
+                <Eraser className="w-4 h-4 text-[#FF7A18]" /> Magic Object Remover
+              </h3>
+              {objectRemoved && <span className="text-[10px] text-emerald-400 font-bold">Object Removed</span>}
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>Brush Size</span>
+                <span className="font-mono text-[#FFB347]">{brushSize}px</span>
+              </div>
+              <input type="range" min="5" max="80" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="w-full accent-[#FF7A18]" />
+            </div>
+            <button
+              onClick={() => {
+                setObjectRemoved(true);
+                showToast('Object Removed cleanly');
+              }}
+              className="w-full py-2 rounded-xl bg-[#FF7A18] text-black font-bold text-xs"
+            >
+              Erase Object
+            </button>
+          </div>
+
+          {/* Chroma Key */}
+          <div className={`p-4 rounded-2xl border space-y-2.5 ${cardBg}`}>
+            <h3 className="text-xs font-extrabold uppercase text-[#FFB347] flex items-center gap-1.5">
+              <Palette className="w-4 h-4 text-[#FF7A18]" /> Chroma Key / Green Screen
+            </h3>
+            <div className="flex gap-1.5">
+              {['None', 'Green', 'Blue', 'Red'].map((col) => (
+                <button
+                  key={col}
+                  onClick={() => {
+                    setChromaColor(col);
+                    showToast(`Chroma Key: ${col}`);
+                  }}
+                  className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border ${
+                    chromaColor === col ? 'border-[#FF7A18] bg-[#FF7A18] text-black' : panelBg
+                  }`}
+                >
+                  {col}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div>
+                <span>Tolerance ({chromaTolerance}%)</span>
+                <input type="range" min="0" max="100" value={chromaTolerance} onChange={(e) => setChromaTolerance(Number(e.target.value))} className="w-full accent-[#FF7A18]" />
+              </div>
+              <div>
+                <span>Feather ({chromaFeather}%)</span>
+                <input type="range" min="0" max="100" value={chromaFeather} onChange={(e) => setChromaFeather(Number(e.target.value))} className="w-full accent-[#FF7A18]" />
+              </div>
+            </div>
+          </div>
+
+          {/* Keyframe Animation */}
+          <div className={`p-4 rounded-2xl border space-y-2.5 ${cardBg}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-extrabold uppercase text-[#FFB347]">Keyframe Animation</h3>
+              <button
+                onClick={() => {
+                  const sec = Math.floor(currentTime);
+                  setKeyframes((k) => Array.from(new Set([...k, sec])));
+                  showToast(`Added keyframe at ${formatTime(sec)}`);
+                }}
+                className="px-2.5 py-1 rounded-lg bg-[#FF7A18] text-black text-[10px] font-extrabold"
+              >
+                + Add Keyframe
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              {[
+                { key: 'position', label: 'Position', min: 0, max: 100 },
+                { key: 'scale', label: 'Scale %', min: 50, max: 150 },
+                { key: 'opacity', label: 'Opacity %', min: 10, max: 100 },
+                { key: 'rotation', label: 'Rotation °', min: -180, max: 180 },
+              ].map((kf) => (
+                <div key={kf.key}>
+                  <div className="flex justify-between">
+                    <span>{kf.label}</span>
+                    <span className="text-[#FFB347]">{keyframeVals[kf.key]}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={kf.min}
+                    max={kf.max}
+                    value={keyframeVals[kf.key]}
+                    onChange={(e) => setKeyframeVals((v) => ({ ...v, [kf.key]: Number(e.target.value) }))}
+                    className="w-full accent-[#FF7A18]"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Stabilization & Reverse/Freeze */}
+          <div className={`p-4 rounded-2xl border space-y-2.5 ${cardBg}`}>
+            <h3 className="text-xs font-extrabold uppercase text-[#FFB347]">Stabilization & Motion</h3>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>Strength</span>
+                <span className="font-mono text-[#FFB347]">{stabilizeStrength}%</span>
+              </div>
+              <input type="range" min="0" max="100" value={stabilizeStrength} onChange={(e) => setStabilizeStrength(Number(e.target.value))} className="w-full accent-[#FF7A18]" />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => {
+                  setStabilized(true);
+                  showToast(`Stabilization applied (${stabilizeStrength}%)`);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-[#FF7A18] text-black text-[11px] font-bold"
+              >
+                Apply Stabilization
+              </button>
+              <button
+                onClick={() => {
+                  setReversed((r) => !r);
+                  setClips((c) => recomputeStarts([...c].reverse()));
+                  showToast(reversed ? 'Normal order restored' : 'Video Reversed');
+                }}
+                className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold ${reversed ? 'border-[#FF7A18] text-[#FFB347]' : panelBg}`}
+              >
+                Reverse Video
+              </button>
+              <button
+                onClick={() => {
+                  setFrozenFrame((f) => !f);
+                  if (!frozenFrame) setIsPlaying(false);
+                  showToast(frozenFrame ? 'Unfroze frame' : 'Freeze Frame active');
+                }}
+                className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold ${frozenFrame ? 'border-sky-400 text-sky-300' : panelBg}`}
+              >
+                Freeze Frame
+              </button>
+              <button
+                onClick={() => setPipEnabled((p) => !p)}
+                className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold ${pipEnabled ? 'bg-[#FF7A18]/20 border-[#FF7A18] text-[#FFB347]' : panelBg}`}
+              >
+                PiP {pipEnabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          </div>
+
+          {/* Blending / Overlay & PiP Corners */}
+          <div className={`p-4 rounded-2xl border space-y-2.5 ${cardBg}`}>
+            <h3 className="text-xs font-extrabold uppercase text-[#FFB347]">Blending / Overlay & PiP</h3>
+            <div className="flex items-center gap-2">
+              <select
+                value={blendMode}
+                onChange={(e) => setBlendMode(e.target.value)}
+                className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold outline-none ${panelBg}`}
+              >
+                {['Normal', 'Multiply', 'Screen', 'Overlay'].map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <input type="range" min="0" max="100" value={blendOpacity} onChange={(e) => setBlendOpacity(Number(e.target.value))} className="flex-1 accent-[#FF7A18]" />
+              <span className="text-xs font-mono text-[#FFB347]">{blendOpacity}%</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {['Fire', 'Smoke', 'Light Leak', 'Rain', 'Bokeh'].map((ov) => (
+                <button
+                  key={ov}
+                  onClick={() => setActiveOverlayChip(ov)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
+                    activeOverlayChip === ov ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : panelBg
+                  }`}
+                >
+                  {ov}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[
+                { label: 'Top-L', x: 4, y: 6 },
+                { label: 'Top-R', x: 72, y: 6 },
+                { label: 'Bot-L', x: 4, y: 64 },
+                { label: 'Bot-R', x: 72, y: 64 },
+              ].map((c) => (
+                <button
+                  key={c.label}
+                  onClick={() => {
+                    setPipEnabled(true);
+                    setPipPos({ x: c.x, y: c.y });
+                  }}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${panelBg} hover:border-[#FF7A18]`}
+                >
+                  PiP {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Asset Store */}
+          <div className={`p-4 rounded-2xl border space-y-2.5 ${cardBg}`}>
+            <h3 className="text-xs font-extrabold uppercase text-[#FFB347]">Asset Store</h3>
+            <div className="space-y-2">
+              {['Trending Music', 'Neon Pack', 'Bangla Fonts'].map((asset) => {
+                const done = !!downloadedAssets[asset];
+                return (
+                  <div key={asset} className={`px-3 py-2 rounded-xl border flex items-center justify-between ${panelBg}`}>
+                    <span className="text-xs font-bold">{asset}</span>
+                    <button
+                      onClick={() => {
+                        setDownloadedAssets((d) => ({ ...d, [asset]: true }));
+                        showToast(`${asset} Downloaded`);
+                      }}
+                      className={`px-3 py-1 rounded-lg text-[11px] font-bold ${
+                        done ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#FF7A18] text-black'
+                      }`}
+                    >
+                      {done ? 'Downloaded' : 'Download'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Performance Bar */}
+      <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${cardBg}`}>
+        <div className="flex items-center gap-2 text-xs font-bold">
+          <Cpu className="w-4 h-4 text-[#FF7A18]" />
+          <span>GPU Acceleration {perfFlags.gpu ? 'ON' : 'OFF'}, Smart Cache {perfFlags.smartCache ? 'ON' : 'OFF'}, Low RAM Mode</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'gpu', label: 'GPU Acceleration' },
+            { key: 'smartCache', label: 'Smart Cache' },
+            { key: 'lowRam', label: 'Low RAM Mode' },
+          ].map((pf) => (
+            <button
+              key={pf.key}
+              onClick={() => setPerfFlags((p) => ({ ...p, [pf.key]: !p[pf.key] }))}
+              className={`px-3 py-1 rounded-xl text-[11px] font-bold border ${
+                perfFlags[pf.key] ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : panelBg
+              }`}
+            >
+              {pf.label}: {perfFlags[pf.key] ? 'ON' : 'OFF'}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ==================== SCREEN 5: EXPORT ====================
+  const renderExport = () => (
+    <div className="max-w-2xl mx-auto space-y-5 pb-6">
+      <div className={`p-5 rounded-3xl border space-y-5 ${cardBg}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-extrabold">Export Video</h2>
+            <p className={`text-xs ${mutedText}`}>Render with hardware acceleration</p>
+          </div>
+          <span className="px-3 py-1 rounded-full bg-[#FF7A18]/20 text-[#FFB347] text-xs font-bold">
+            {exportRes} • {exportFps}
+          </span>
+        </div>
+
+        {/* Resolution */}
+        <div>
+          <label className="text-xs font-bold uppercase text-[#FFB347] block mb-2">Resolution</label>
+          <div className="grid grid-cols-5 gap-2">
+            {['480p', '720p', '1080p', '2K', '4K'].map((res) => (
+              <button
+                key={res}
+                onClick={() => {
+                  if (res === '4K' && !isPremium) {
+                    showToast('4K is a VIP preview — unlock in Premium');
+                  }
+                  setExportRes(res);
+                }}
+                className={`py-2 rounded-xl text-xs font-extrabold border transition ${
+                  exportRes === res ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : panelBg
+                }`}
+              >
+                {res}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* FPS */}
+        <div>
+          <label className="text-xs font-bold uppercase text-[#FFB347] block mb-2">Frame Rate (FPS)</label>
+          <div className="grid grid-cols-2 gap-2">
+            {['30fps', '60fps'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setExportFps(f)}
+                className={`py-2 rounded-xl text-xs font-extrabold border ${
+                  exportFps === f ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : panelBg
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Toggles */}
+        <div className="space-y-2.5">
+          {[
+            { label: 'High Bitrate', val: highBitrate, set: setHighBitrate },
+            { label: 'Background Export', val: bgExport, set: setBgExport },
+            { label: 'Watermark ON / OFF (Premium)', val: watermarkOn, set: (v) => setWatermarkOn(v) },
+          ].map((tg) => (
+            <div key={tg.label} className={`px-4 py-3 rounded-2xl border flex items-center justify-between ${panelBg}`}>
+              <span className="text-xs font-bold">{tg.label}</span>
+              <button
+                onClick={() => tg.set(!tg.val)}
+                className={`w-11 h-6 rounded-full p-0.5 transition ${tg.val ? 'bg-[#FF7A18]' : 'bg-zinc-600'}`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white transition-transform ${tg.val ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Social Presets & Auto Ratio */}
+        <div>
+          <label className="text-xs font-bold uppercase text-[#FFB347] block mb-2">Social Presets & Auto Ratio Resize</label>
+          <div className="flex flex-wrap gap-2 mb-2.5">
+            {['TikTok', 'Instagram Reel', 'Facebook Reel', 'YouTube Shorts'].map((pr) => (
+              <button
+                key={pr}
+                onClick={() => {
+                  setExportPreset(pr);
+                  setExportRatio('9:16');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${
+                  exportPreset === pr ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : panelBg
+                }`}
+              >
+                {pr}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {['9:16', '16:9', '1:1'].map((r) => (
+              <button
+                key={r}
+                onClick={() => {
+                  setExportRatio(r);
+                  setAspectCrop(r);
+                }}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold border ${
+                  exportRatio === r ? 'border-[#FF7A18] text-[#FFB347]' : panelBg
+                }`}
+              >
+                Auto Ratio {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        {(isExporting || exportDone) && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-bold">
+              <span>{exportDone ? `Export Done - ${exportRes} Ready` : 'Rendering video...'}</span>
+              <span className="font-mono text-[#FFB347]">{exportProgress}%</span>
+            </div>
+            <div className="w-full h-3 rounded-full bg-black/50 overflow-hidden border border-white/10">
+              <div
+                className="h-full bg-gradient-to-r from-[#FF7A18] to-[#FFB347] transition-all duration-100"
+                style={{ width: `${exportProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={() => {
+            setExportDone(false);
+            setExportProgress(0);
+            setIsExporting(true);
+          }}
+          disabled={isExporting}
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF7A18] to-[#FFB347] text-black font-extrabold text-sm shadow-lg shadow-[#FF7A18]/25 disabled:opacity-60 transition"
+        >
+          {isExporting ? `Exporting (${exportProgress}%)...` : 'Export Video'}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ==================== SCREEN 6: PREMIUM ====================
+  const renderPremium = () => (
+    <div className="max-w-4xl mx-auto space-y-6 pb-6">
+      <div className="text-center space-y-2 py-2">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF7A18]/20 text-[#FFB347] text-xs font-bold">
+          <Crown className="w-4 h-4" /> VIP ACCESS
+        </div>
+        <h2 className="text-3xl font-extrabold bg-gradient-to-r from-[#FF7A18] to-[#FFB347] bg-clip-text text-transparent">
+          Ultra Premium
+        </h2>
+        <p className={`text-sm ${mutedText}`}>Remove Ads • VIP Templates • 4K Export • AI Tools</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { id: 'monthly', name: 'Monthly', price: '299/month', badge: null },
+          { id: 'yearly', name: 'Yearly', price: '1999/year', badge: 'BEST' },
+          { id: 'lifetime', name: 'Lifetime', price: '4999/once', badge: 'VIP' },
+        ].map((plan) => (
+          <div
+            key={plan.id}
+            className={`relative p-6 rounded-3xl border flex flex-col justify-between gap-5 ${
+              plan.badge === 'BEST'
+                ? 'border-[#FF7A18] bg-gradient-to-b from-[#FF7A18]/15 to-[#161616] shadow-[0_0_35px_rgba(255,122,24,0.2)]'
+                : cardBg
+            }`}
+          >
+            {plan.badge && (
+              <span className="absolute -top-3 right-5 px-3 py-0.5 rounded-full bg-gradient-to-r from-[#FF7A18] to-[#FFB347] text-black text-[10px] font-extrabold">
+                {plan.badge}
+              </span>
+            )}
+            <div>
+              <h3 className="text-lg font-extrabold">{plan.name}</h3>
+              <p className="text-3xl font-black text-[#FFB347] mt-2">৳{plan.price}</p>
+              <ul className={`text-xs space-y-2 mt-4 ${mutedText}`}>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#FF7A18]" /> Remove Ads & Watermark</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#FF7A18]" /> VIP Templates & Bangla Fonts</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#FF7A18]" /> 4K 60fps Export + All AI Tools</li>
+              </ul>
+            </div>
+            <button
+              onClick={() => {
+                setIsPremium(true);
+                setWatermarkOn(false);
+                showToast(`Ultra Premium (${plan.name}) activated!`);
+              }}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF7A18] to-[#FFB347] text-black font-extrabold text-sm hover:brightness-105 transition"
+            >
+              {isPremium ? 'Active Plan' : 'Buy'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ==================== SCREEN 7: SETTINGS ====================
+  const renderSettings = () => (
+    <div className="max-w-2xl mx-auto space-y-4 pb-6">
+      <h2 className="text-xl font-extrabold">Settings</h2>
+
+      <div className={`p-4 rounded-3xl border space-y-3 ${cardBg}`}>
+        {/* Dark / Light Mode */}
+        <div className={`px-4 py-3 rounded-2xl border flex items-center justify-between ${panelBg}`}>
+          <div>
+            <p className="text-sm font-bold">{darkMode ? 'Dark Mode' : 'Light Mode'}</p>
+            <p className={`text-xs ${mutedText}`}>Switch between #0B0B0B Dark & Light theme</p>
+          </div>
+          <button
+            onClick={() => {
+              setDarkMode((d) => !d);
+              showToast(darkMode ? 'Light Mode enabled' : 'Dark Mode enabled');
+            }}
+            className={`w-12 h-6 rounded-full p-0.5 transition ${darkMode ? 'bg-[#FF7A18]' : 'bg-zinc-500'}`}
+          >
+            <div className={`w-5 h-5 rounded-full bg-white transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-0'}`} />
+          </button>
+        </div>
+
+        {/* Cloud Backup & Auto Save */}
+        {[
+          { label: 'Cloud Backup', val: cloudBackup, set: setCloudBackup },
+          { label: 'Auto Save', val: autoSave, set: setAutoSave },
+        ].map((item) => (
+          <div key={item.label} className={`px-4 py-3 rounded-2xl border flex items-center justify-between ${panelBg}`}>
+            <span className="text-sm font-bold">{item.label}</span>
+            <button
+              onClick={() => item.set(!item.val)}
+              className={`w-12 h-6 rounded-full p-0.5 transition ${item.val ? 'bg-[#FF7A18]' : 'bg-zinc-500'}`}
+            >
+              <div className={`w-5 h-5 rounded-full bg-white transition-transform ${item.val ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
+        ))}
+
+        {/* Draft Recovery */}
+        <div className={`px-4 py-3 rounded-2xl border flex items-center justify-between ${panelBg}`}>
+          <div>
+            <p className="text-sm font-bold">Draft Recovery</p>
+            <p className={`text-xs ${mutedText}`}>Restore unsaved timeline edits</p>
+          </div>
+          <button
+            onClick={() => {
+              setClips(INITIAL_CLIPS);
+              showToast('Draft recovered successfully');
+            }}
+            className="px-3.5 py-1.5 rounded-xl bg-[#FF7A18] text-black text-xs font-extrabold"
+          >
+            Recover
+          </button>
+        </div>
+
+        {/* Quality & Storage */}
+        <div className={`px-4 py-3 rounded-2xl border flex items-center justify-between ${panelBg}`}>
+          <span className="text-sm font-bold">Preview Quality</span>
+          <select
+            value={quality}
+            onChange={(e) => setQuality(e.target.value)}
+            className={`px-3 py-1 rounded-xl border text-xs font-bold outline-none ${cardBg}`}
+          >
+            {['High', 'Medium', 'Low'].map((q) => (
+              <option key={q} value={q}>{q}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className={`px-4 py-3 rounded-2xl border flex items-center justify-between ${panelBg}`}>
+          <div>
+            <p className="text-sm font-bold">Storage: Smart Cache</p>
+            <p className={`text-xs ${mutedText}`}>Used: {smartCacheSize}</p>
+          </div>
+          <button
+            onClick={() => {
+              setSmartCacheSize('0 MB');
+              showToast('Smart Cache cleared');
+            }}
+            className="px-3 py-1.5 rounded-xl border border-[#FF7A18] text-[#FFB347] text-xs font-bold"
+          >
+            Clear Cache
+          </button>
+        </div>
+
+        {/* Language */}
+        <div className={`px-4 py-3 rounded-2xl border flex items-center justify-between ${panelBg}`}>
+          <span className="text-sm font-bold flex items-center gap-2">
+            <Globe className="w-4 h-4 text-[#FF7A18]" /> Language
+          </span>
+          <div className="flex gap-1.5">
+            {[
+              { id: 'en', label: 'English' },
+              { id: 'bn', label: 'বাংলা (Bangla)' },
+            ].map((lang) => (
+              <button
+                key={lang.id}
+                onClick={() => {
+                  setLanguage(lang.id);
+                  showToast(`Language: ${lang.label}`);
+                }}
+                className={`px-3 py-1 rounded-xl text-xs font-bold border ${
+                  language === lang.id ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : cardBg
+                }`}
+              >
+                {lang.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Login / Logout */}
+        <div className={`px-4 py-3 rounded-2xl border flex flex-wrap items-center justify-between gap-2 ${panelBg}`}>
+          <span className="text-sm font-bold">Login ({authUser})</span>
+          <div className="flex flex-wrap gap-1.5">
+            {['Google', 'Facebook', 'Guest'].map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  setAuthUser(p);
+                  showToast(`Logged in with ${p}`);
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold border ${
+                  authUser === p ? 'bg-[#FF7A18] text-black border-[#FF7A18]' : cardBg
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setAuthUser('Signed Out');
+                showToast('Logged out');
+              }}
+              className="px-2.5 py-1 rounded-xl bg-red-500/20 text-red-400 text-xs font-bold flex items-center gap-1"
+            >
+              <LogOut className="w-3 h-3" /> Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const navItems = [
+    { id: 'home', label: labels.home, icon: Home },
+    { id: 'editor', label: labels.editor, icon: Film },
+    { id: 'pro', label: labels.pro, icon: Wand2 },
+    { id: 'export', label: labels.export, icon: Download },
+    { id: 'premium', label: labels.premium, icon: Crown },
+    { id: 'settings', label: labels.settings, icon: Settings },
+  ];
+
+  // ==================== MAIN APP SHELL ====================
+  return (
+    <div className={`min-h-screen ${surfaceBg} transition-colors duration-200 flex flex-col`}>
+      {/* Top Desktop/Tablet Navigation */}
+      <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${darkMode ? 'bg-[#0B0B0B]/85 border-white/10' : 'bg-white/85 border-black/10'}`}>
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          <div
+            onClick={() => setActiveTab('home')}
+            className="flex items-center gap-2 cursor-pointer shrink-0"
+          >
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#FF7A18] to-[#FFB347] flex items-center justify-center">
+              <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+            </div>
+            <span className="font-extrabold text-base tracking-tight">Ultra Edits</span>
+          </div>
+
+          <nav className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                  activeTab === item.id
+                    ? 'bg-gradient-to-r from-[#FF7A18] to-[#FFB347] text-black shadow-sm'
+                    : 'hover:text-[#FF7A18]'
+                }`}
+              >
+                <item.icon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+
+          <button
+            onClick={() => setActiveTab('premium')}
+            className="px-3 py-1.5 rounded-xl bg-[#FF7A18]/15 border border-[#FF7A18]/40 text-[#FFB347] text-xs font-bold flex items-center gap-1.5 shrink-0"
+          >
+            <Crown className="w-3.5 h-3.5" />
+            <span>{isPremium ? 'VIP' : 'Go Pro'}</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-5 pt-4 pb-24 md:pb-8">
+        {activeTab === 'home' && renderHome()}
+        {activeTab === 'editor' && renderEditor()}
+        {activeTab === 'pro' && renderProTools()}
+        {activeTab === 'export' && renderExport()}
+        {activeTab === 'premium' && renderPremium()}
+        {activeTab === 'settings' && renderSettings()}
+      </main>
+
+      {/* Mobile Bottom Navigation (<768px / <600px phone layout) */}
+      <nav className={`md:hidden fixed bottom-0 inset-x-0 z-40 border-t backdrop-blur-xl px-1 py-1.5 flex justify-around ${darkMode ? 'bg-[#0B0B0B]/95 border-white/10' : 'bg-white/95 border-black/10'}`}>
+        {navItems.map((item) => {
+          const active = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition ${
+                active ? 'text-[#FF7A18]' : mutedText
+              }`}
+            >
+              <item.icon className={`w-4 h-4 ${active ? 'scale-110' : ''} transition-transform`} />
+              <span className="text-[10px] font-bold">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Global Toast */}
+      {toast && (
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#161616] text-white border border-[#FF7A18]/60 shadow-[0_0_25px_rgba(255,122,24,0.35)] text-xs font-bold flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-[#FFB347]" />
+          <span>{toast}</span>
+        </div>
+      )}
+    </div>
+  );
+}
